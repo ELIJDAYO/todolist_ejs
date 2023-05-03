@@ -3,6 +3,8 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
+const bson = require("bson");
+const _ = require("lodash");
 const { Schema } = mongoose;
 
 const date = require(__dirname + "/date.js");
@@ -19,19 +21,19 @@ app.use(express.static("public"));
 mongoose.connect('mongodb://127.0.0.1:27017/todolistDB', {useNewUrlParser : true});
 
 const itemSchema = new Schema({
- _id : Number,
+ _id : String,
  name:  String
 });
 
 const Item = mongoose.model("Item", itemSchema);
 const item1 = new Item({
- _id : 1,
+ _id : new bson.ObjectId().toString(),
  name:"Welcome to your ToDo List!"});
 const item2 = new Item({
- _id : 2,
+ _id :  new bson.ObjectId().toString(),
  name:"Hit the + button to add new item."});
 const item3 = new Item({
- _id :3,
+ _id :  new bson.ObjectId().toString(),
  name:"<-- Hit this to delete an item."});
 
 const defaultItems = [item1, item2, item3];
@@ -42,14 +44,12 @@ const listSchema = new Schema({
 });
 const List = mongoose.model("List", listSchema);
 
-var lastidx = 0
 app.get("/", function(req, res) {
   // find all, return list of documents
   Item.find({}).then(function(foundItems){
     if(foundItems.length === 0){
       Item.insertMany(defaultItems)
         .then(function () {
-          lastidx = foundItems.length
           console.log("Successfully saved defult items to DB");
           res.redirect("/");
         })
@@ -65,15 +65,19 @@ app.get("/", function(req, res) {
   });
 });
 app.get("/:customListName", function(req, res){
-  const customListName = req.params.customListName;
+  const customListName = _.capitalize(req.params.customListName);
 
   List.findOne({name: customListName})
     .then(function (foundList) {
       if(!foundList){
-        // console.log("Add new list");
+        console.log("Add new list?");
         const list = new List({
           name: customListName,
-          items: defaultItems
+          items: defaultItems,
+          index: {
+          unique: true,
+          dropDups: true
+        }
         });
         list.save();
         res.redirect("/" + customListName);
@@ -91,10 +95,13 @@ app.get("/:customListName", function(req, res){
 app.post("/",function(req,res){
   const itemName = req.body.newItem;
   const listName = req.body.list;
-
   const item = new Item({
-    _id: lastidx,
-    name: itemName
+    _id:  new bson.ObjectId().toString(),
+    name: itemName,
+    index: {
+    unique: true,
+    dropDups: true
+  }
   });
   if(listName === "Today"){
     item.save();
@@ -110,15 +117,33 @@ app.post("/",function(req,res){
 });
 app.post("/delete", function(req, res){
   const checkedItemId = req.body.checkbox;
-  Item.findByIdAndRemove(checkedItemId)
+  const listName = req.body.listName;
+  if(listName === "Today"){
+    Item.findByIdAndRemove(checkedItemId)
+      .then(function () {
+        console.log("Deleted successfully");
+        res.redirect("/")
+      })
+      .catch(function (err) {
+        console.log(err);
+      });
+      // if its customlist name
+  }else{
+    // use this instead of using js fun loop and filter
+    List.findOneAndUpdate({name: listName}, {$pull: {
+        "items" : {
+          _id: checkedItemId
+        }
+      }
+    })
     .then(function () {
-      console.log("Deleted successfully");
-      res.redirect("/")
+      res.redirect("/" + listName)
     })
     .catch(function (err) {
       console.log(err);
     });
-})
+  }
+});
 app.get("/work", function(req,res){
   res.render("list",{listTitle: "Work List", newListItems: workItems});
 });
