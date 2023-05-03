@@ -22,6 +22,7 @@ const itemSchema = new Schema({
  _id : Number,
  name:  String
 });
+
 const Item = mongoose.model("Item", itemSchema);
 const item1 = new Item({
  _id : 1,
@@ -34,8 +35,16 @@ const item3 = new Item({
  name:"<-- Hit this to delete an item."});
 
 const defaultItems = [item1, item2, item3];
+
+const listSchema = new Schema({
+  name: String,
+  items: [itemSchema]
+});
+const List = mongoose.model("List", listSchema);
+
 var lastidx = 0
 app.get("/", function(req, res) {
+  // find all, return list of documents
   Item.find({}).then(function(foundItems){
     if(foundItems.length === 0){
       Item.insertMany(defaultItems)
@@ -54,9 +63,31 @@ app.get("/", function(req, res) {
   .catch(function(err){
     console.log(err);
   });
+});
+app.get("/:customListName", function(req, res){
+  const customListName = req.params.customListName;
+
+  List.findOne({name: customListName})
+    .then(function (foundList) {
+      if(!foundList){
+        // console.log("Add new list");
+        const list = new List({
+          name: customListName,
+          items: defaultItems
+        });
+        list.save();
+        res.redirect("/" + customListName);
+      }else{
+        // console.log("Already existing list");
+        res.render("list", {listTitle: foundList.name, newListItems: foundList.items})
+      }
+      // res.redirect("/");
+    })
+    .catch(function (err) {
+      console.log(err);
+    });
 
 });
-
 app.post("/",function(req,res){
   const itemName = req.body.newItem;
   const item = new Item({
