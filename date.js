@@ -26,4 +26,4 @@ exports.getDay = function(){
   return day;
 }
 // to check if exported modules are visible in console
-console.log(module.exports);
+// console.log(module.exports);

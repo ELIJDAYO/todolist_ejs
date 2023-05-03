@@ -66,13 +66,25 @@ app.post("/",function(req,res){
   item.save();
   res.redirect("/")
 });
-
+app.post("/delete", function(req, res){
+  const checkedItemId = req.body.checkbox;
+  Item.findByIdAndRemove(checkedItemId)
+    .then(function () {
+      console.log("Deleted successfully");
+      res.redirect("/")
+    })
+    .catch(function (err) {
+      console.log(err);
+    });
+})
 app.get("/work", function(req,res){
   res.render("list",{listTitle: "Work List", newListItems: workItems});
 });
 app.get("/about", function(req,res){
   res.render("about")
 });
+
+
 
 app.post("/work", function(req,res){
   let item = req.body.newItem;
