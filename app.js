@@ -34,35 +34,37 @@ const item3 = new Item({
  name:"<-- Hit this to delete an item."});
 
 const defaultItems = [item1, item2, item3];
-Item.insertMany(defaultItems)
-  .then(function () {
-    console.log("Successfully saved defult items to DB");
+var lastidx = 0
+app.get("/", function(req, res) {
+  Item.find({}).then(function(foundItems){
+    if(foundItems.length === 0){
+      Item.insertMany(defaultItems)
+        .then(function () {
+          lastidx = foundItems.length
+          console.log("Successfully saved defult items to DB");
+          res.redirect("/");
+        })
+        .catch(function (err) {
+          console.log(err);
+        });
+    }else{
+      res.render("list", { listTitle: "Today", newListItems: foundItems });
+    }
   })
-  .catch(function (err) {
+  .catch(function(err){
     console.log(err);
   });
 
-app.get("/", function(req, res) {
-  let day = date.getDay();
-  res.render("list", {
-    listTitle: "Today",
-    newListItems: items
-  });
 });
 
 app.post("/",function(req,res){
-  let item = req.body.newItem;
-  // to check whats posted
-    console.log("home " + req.body.list);
-  if(req.body.list === "Work List"){
-    workItems.push(item);
-    res.redirect("/work");
-  }else{
-    items.push(item);
-    res.redirect("/");
-  }
-  // console.log(item);
-
+  const itemName = req.body.newItem;
+  const item = new Item({
+    _id: lastidx,
+    name: itemName
+  });
+  item.save();
+  res.redirect("/")
 });
 
 app.get("/work", function(req,res){
